@@ -1,0 +1,12 @@
+{
+  "name": "@adobe-addon-i18n/react",
+  "version": "0.1.0",
+  "main": "src/index.tsx",
+  "private": true,
+  "peerDependencies": {
+    "react": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0"
+  }
+}

@@ -1,0 +1,5 @@
+# CodeRabbit Configuration
+instructions: >
+  Strictly review TypeScript AST parsing logic.
+  Enforce memory efficiency.
+  Specifically flag unhandled edge cases in Node.js file system operations.
