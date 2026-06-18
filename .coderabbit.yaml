@@ -1,5 +1,12 @@
-# CodeRabbit Configuration
-instructions: >
-  Strictly review TypeScript AST parsing logic.
-  Enforce memory efficiency.
-  Specifically flag unhandled edge cases in Node.js file system operations.
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+reviews:
+  path_instructions:
+    - path: "**/*"
+      instructions: >
+        Strictly review TypeScript AST parsing logic in the CLI package, ensuring it targets React frontend files (.tsx, .jsx) and accurately extracts strings passed to the 't' function derived from the 'useTranslation' hook.
+        
+        Enforce absolute browser compatibility inside 'packages/core'; flag any accidental inclusion of Node.js runtime modules (fs, path), Express types (Request, Response), or backend middleware patterns.
+        
+        Verify that the dictionary synchronization logic uses a non-destructive merge strategy that never overwrites or deletes existing translations.
+        
+        Enforce memory efficiency during AST traversal and flag unhandled edge cases or race conditions in file system write operations.
