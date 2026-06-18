@@ -4,6 +4,8 @@ import { Project, Node, CallExpression } from 'ts-morph';
 import path from 'node:path';
 import fs from 'node:fs';
 
+import fsPromises from 'node:fs/promises';
+
 const cli = cac('adobe-addon-i18n');
 
 function isTranslationCall(node: CallExpression): boolean {
@@ -36,9 +38,9 @@ function extractKeys(srcPath: string): Set<string> {
   return keys;
 }
 
-function safeMerge(localesDir: string, langs: string[], keys: Set<string>) {
+async function safeMerge(localesDir: string, langs: string[], keys: Set<string>) {
   if (!fs.existsSync(localesDir)) {
-    fs.mkdirSync(localesDir, { recursive: true });
+    await fsPromises.mkdir(localesDir, { recursive: true });
   }
 
   const langsList = langs.map(l => l.trim());
@@ -49,7 +51,7 @@ function safeMerge(localesDir: string, langs: string[], keys: Set<string>) {
 
     if (fs.existsSync(filePath)) {
       try {
-        currentData = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+        currentData = JSON.parse(await fsPromises.readFile(filePath, 'utf-8'));
       } catch (e) {
         console.error(`Error parsing ${filePath}: ${(e as Error).message}`);
         continue;
@@ -72,7 +74,7 @@ function safeMerge(localesDir: string, langs: string[], keys: Set<string>) {
       }
     }
 
-    fs.writeFileSync(filePath, JSON.stringify(currentData, null, 2), 'utf-8');
+    await fsPromises.writeFile(filePath, JSON.stringify(currentData, null, 2), 'utf-8');
 
     console.log(`\nLocale: ${lang}`);
     console.log(`  - Total unique keys: ${keys.size}`);
@@ -85,14 +87,14 @@ cli.command('sync', 'Sync AST and translation files')
   .option('--src <path>', 'Source directory', { default: './src' })
   .option('--locales <path>', 'Locales directory', { default: './locales' })
   .option('--langs <list>', 'Comma-separated supported locales', { default: 'en' })
-  .action((options) => {
+  .action(async (options) => {
     console.log(`Starting adobe-addon-i18n sync...`);
     const srcPath = path.resolve(process.cwd(), options.src);
     const localesPath = path.resolve(process.cwd(), options.locales);
     const langs = options.langs.split(',');
 
     const keys = extractKeys(srcPath);
-    safeMerge(localesPath, langs, keys);
+    await safeMerge(localesPath, langs, keys);
     console.log(`\nSync complete!`);
   });
 
