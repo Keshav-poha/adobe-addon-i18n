@@ -22,6 +22,12 @@ function extractKeys(srcPath: string): Set<string> {
   const keys = new Set<string>();
 
   for (const sourceFile of project.getSourceFiles()) {
+    // Only process files that import useTranslation
+    const hasImport = sourceFile.getImportDeclarations().some(imp => 
+      imp.getNamedImports().some(named => named.getName() === 'useTranslation')
+    );
+    if (!hasImport) continue;
+
     sourceFile.forEachDescendant((node: Node) => {
       if (Node.isCallExpression(node) && isTranslationCall(node)) {
         const args = node.getArguments();
@@ -36,6 +42,41 @@ function extractKeys(srcPath: string): Set<string> {
   }
 
   return keys;
+}
+
+function setDeep(obj: any, path: string, value: any) {
+  const keys = path.split('.');
+  let current = obj;
+  for (let i = 0; i < keys.length - 1; i++) {
+    const key = keys[i];
+    if (!current[key] || typeof current[key] !== 'object') {
+      current[key] = {};
+    }
+    current = current[key];
+  }
+  current[keys[keys.length - 1]] = value;
+}
+
+function hasDeep(obj: any, path: string): boolean {
+  const keys = path.split('.');
+  let current = obj;
+  for (const key of keys) {
+    if (current === undefined || current === null || !(key in current)) return false;
+    current = current[key];
+  }
+  return true;
+}
+
+function countEmptyDeep(obj: any): number {
+  let count = 0;
+  for (const key of Object.keys(obj)) {
+    if (typeof obj[key] === 'object' && obj[key] !== null) {
+      count += countEmptyDeep(obj[key]);
+    } else if (obj[key] === "") {
+      count++;
+    }
+  }
+  return count;
 }
 
 async function safeMerge(localesDir: string, langs: string[], keys: Set<string>) {
@@ -62,17 +103,13 @@ async function safeMerge(localesDir: string, langs: string[], keys: Set<string>)
     let missingCount = 0;
 
     for (const key of keys) {
-      if (!(key in currentData)) {
-        currentData[key] = "";
+      if (!hasDeep(currentData, key)) {
+        setDeep(currentData, key, "");
         newCount++;
       }
     }
 
-    for (const key of Object.keys(currentData)) {
-      if (currentData[key] === "") {
-        missingCount++;
-      }
-    }
+    missingCount = countEmptyDeep(currentData);
 
     await fsPromises.writeFile(filePath, JSON.stringify(currentData, null, 2), 'utf-8');
 
