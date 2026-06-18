@@ -63,7 +63,7 @@ export const I18nProvider: React.FC<I18nProviderProps> = ({ locales, defaultLoca
             }
           }
 
-          sdk.app.on('localechange', (data: any) => {
+          sdk.app.on('localechange', (data: { locale: string }) => {
             const newLocale = data.locale;
             const primaryLang = newLocale.split('-')[0];
             if (locales[newLocale]) {

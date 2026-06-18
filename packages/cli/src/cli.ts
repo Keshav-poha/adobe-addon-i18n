@@ -49,6 +49,9 @@ function setDeep(obj: any, path: string, value: any) {
   let current = obj;
   for (let i = 0; i < keys.length - 1; i++) {
     const key = keys[i];
+    if (current[key] !== undefined && typeof current[key] !== 'object') {
+      console.warn(`[adobe-addon-i18n] Warning: Overwriting non-object key '${key}' at path '${path}'`);
+    }
     if (!current[key] || typeof current[key] !== 'object') {
       current[key] = {};
     }
