@@ -1,8 +1,15 @@
 import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
 
-// Declaration to hook into Adobe Express Add-on SDK's global variable
 declare global {
-  var addOnUISdk: any;
+  var addOnUISdk: {
+    ready: Promise<void>;
+    app: {
+      ui: {
+        locale: string;
+      };
+      on: (event: 'localechange' | string, callback: (data: { locale: string }) => void) => void;
+    };
+  };
 }
 
 export interface I18nContextType {
@@ -56,7 +63,7 @@ export const I18nProvider: React.FC<I18nProviderProps> = ({ locales, defaultLoca
             }
           }
 
-          sdk.app.on('localechange', (data: any) => {
+          sdk.app.on('localechange', (data: { locale: string }) => {
             const newLocale = data.locale;
             const primaryLang = newLocale.split('-')[0];
             if (locales[newLocale]) {
