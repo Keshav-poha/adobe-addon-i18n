@@ -1,5 +1,5 @@
 <div align="center">
-  <h1>🌍 i18n-express</h1>
+  <h1>🌍 adobe-addon-i18n</h1>
   <p><strong>A zero-dependency, React-first localization infrastructure built exclusively for the Adobe Express ecosystem.</strong></p>
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
@@ -10,22 +10,20 @@
 
 <hr />
 
-## 🤔 Why did we make this?
+## 🤔 Why does this exist?
 
-Building Add-ons for Adobe Express comes with a unique challenge: **Iframe Bundle Size constraints.**
+Building Add-ons for Adobe Express comes with a unique constraint: **iframe bundle size**.
 
-Traditional i18n libraries (like `i18next` or `react-intl`) are fantastic, but they ship with massive parsers, pluralization engines, and ICU message formatters. When you are building a lightweight Add-on that needs to load instantly inside an Adobe Express iframe, every kilobyte matters.
+Traditional i18n libraries ship with parsers, pluralization engines, and ICU message formatters that are powerful but heavy. When you need an add-on to load instantly inside an Adobe Express iframe, every kilobyte matters.
 
-**`i18n-express` solves this by physically splitting the localization process into two halves:**
+`adobe-addon-i18n` solves this by splitting the localization workflow into two halves:
 
-1. **A Microscopic Runtime:** A tiny React context provider that only knows how to do three things: listen to the Adobe SDK for locale changes, resolve deep object keys (e.g., `user.auth.login`), and replace `{{variables}}`.
-2. **A Heavyweight Local Daemon:** A CLI that runs _on your machine_, not in the browser. It parses your React code, extracts your keys, manages your JSON files, and even uses Google Translate to translate them for you.
-
-You get the developer experience of a massive enterprise i18n framework, but your end-users only download a microscopic React runtime.
+1. **A Microscopic Runtime** (`@adobe-addon-i18n/react`): A tiny React context provider that runs in the browser. It detects the user's locale via the Adobe SDK, resolves dot-notation keys, interpolates `{{variables}}`, and handles pluralization. Zero external dependencies.
+2. **A Heavyweight Local Tool** (`@adobe-addon-i18n/cli`): A CLI that runs on your machine during development. It parses your React source files using the TypeScript compiler API, extracts every `t()` call, syncs those keys into local JSON files, and auto-translates missing entries via Google Translate.
 
 ---
 
-## 🏗️ Architecture & How It Works
+## 🏗️ Architecture
 
 ```mermaid
 graph TD
@@ -43,33 +41,24 @@ graph TD
     end
 ```
 
-### The Three Pillars
-
-1. **`@adobe-addon-i18n/react`**: The React runtime. It automatically detects the user's language via the Adobe Express Add-on SDK (`addOnUISdk.app.ui.locale`) and listens for `localechange` events.
-2. **`@adobe-addon-i18n/cli`**: The AST (Abstract Syntax Tree) compiler. Instead of you manually maintaining JSON files, the CLI reads your `.tsx` files, finds every time you called `t("my.key")`, and builds the JSON files for you automatically.
-3. **The Translation Engine**: Built into the CLI, this engine scans your JSON files for empty strings (`""`), protects your `{{variables}}` using a tokenization algorithm, and fetches high-quality translations for free using the Google Translate API.
-
 ---
 
-## 🚀 Getting Started (In Easy Language)
+## 🚀 Getting Started
 
-### 1. Installation
-
-Install the tiny core package into your dependencies, and the heavy CLI into your dev dependencies.
+### 1. Install
 
 ```bash
+# The tiny runtime goes into your production bundle
 npm install @adobe-addon-i18n/react
+
+# The CLI is a dev tool only — never ships to the browser
 npm install --save-dev @adobe-addon-i18n/cli
 ```
 
-### 2. Wrap your App
-
-Wrap your root React component in the `<I18nProvider>`. This connects your app to the Adobe SDK.
+### 2. Wrap your app
 
 ```tsx
 import { I18nProvider, useTranslation } from '@adobe-addon-i18n/react';
-
-// Normally, you would import these from your generated files
 import en from './locales/en.json';
 import es from './locales/es.json';
 
@@ -80,11 +69,14 @@ function App() {
 
   return (
     <div>
-      {/* Just invent keys as you type! No need to create them in JSON first. */}
+      {/* Static key */}
       <h1>{t('onboarding.title')}</h1>
 
-      {/* You can pass dynamic variables too */}
+      {/* Variable interpolation */}
       <p>{t('onboarding.welcome', { username: 'Keshav' })}</p>
+
+      {/* Pluralization */}
+      <span>{t('item_count', { count: 3 })}</span>
     </div>
   );
 }
@@ -98,15 +90,15 @@ export default function Root() {
 }
 ```
 
-### 3. Sync your Keys (Magic Step 🪄)
+### 3. Sync your keys
 
-You just wrote `t('onboarding.title')` in your code, but you haven't created any JSON files yet. That's fine! Run the sync command:
+You just wrote `t('onboarding.title')` in your code but haven't created any JSON files yet. Run:
 
 ```bash
 npx adobe-addon-i18n sync --src ./src --locales ./locales --langs en,es,fr,de
 ```
 
-**What just happened?** The CLI read your React code, found your new keys, and automatically generated `en.json`, `es.json`, `fr.json`, and `de.json` with the following structure:
+The CLI reads your React source, finds all `t()` calls, and creates `en.json`, `es.json`, `fr.json`, `de.json` with empty-string placeholders for each key:
 
 ```json
 {
@@ -117,56 +109,87 @@ npx adobe-addon-i18n sync --src ./src --locales ./locales --langs en,es,fr,de
 }
 ```
 
-### 4. Auto-Translate
+Existing translations are **never overwritten**.
 
-Now you have empty JSON files in Spanish, French, and German. Fill out the English (`en.json`) file with your base text:
+### 4. Fill in your base language
+
+Edit `en.json`:
 
 ```json
 {
   "onboarding": {
     "title": "Welcome to Adobe Express",
     "welcome": "Hello {{username}}, glad you are here!"
-  }
+  },
+  "item_count": "One item",
+  "item_count_plural": "{{count}} items"
 }
 ```
 
-Then, run the translate command:
+### 5. Auto-translate
 
 ```bash
 npx adobe-addon-i18n translate --src en --locales ./locales
 ```
 
-The Translation Engine will automatically detect that Spanish, French, and German are missing translations. It will query the free Google Translate API, safely protect your `{{username}}` variable so the translator doesn't break it, and fill out your JSON files instantly.
+The CLI finds empty strings in your target locale files, protects `{{variables}}` from being mangled, and fills in translations automatically.
+
+> **⚠️ Privacy notice:** The `translate` command sends your translation strings to Google's servers. Do not use it if your strings contain sensitive data. Pass `--no-translate` to skip all API calls. See the [CLI README](./packages/cli/README.md) for full details.
 
 ---
 
-## 📖 CLI Commands Reference
+## 📖 CLI Reference
 
 ### `sync`
 
-Safely extracts keys from your source code and merges them into your locale JSON files without deleting existing translations.
-
-| Flag        | Default     | Description                                          |
-| ----------- | ----------- | ---------------------------------------------------- |
-| `--src`     | `./src`     | Directory containing your React code                 |
-| `--locales` | `./locales` | Directory where JSON files should be saved           |
-| `--langs`   | `en,es,fr`  | Comma-separated list of target languages to generate |
+| Flag | Default | Description |
+|---|---|---|
+| `--src <path>` | `./src` | Source directory to scan |
+| `--locales <path>` | `./locales` | Locale JSON output directory |
+| `--langs <list>` | `en` | Comma-separated BCP 47 language tags |
 
 ### `translate`
 
-Finds empty string values (`""`) in your target JSON files and auto-translates them based on the source file.
+| Flag | Default | Description |
+|---|---|---|
+| `--src <lang>` | `en` | Source language to translate from |
+| `--locales <path>` | `./locales` | Locale JSON directory |
+| `--no-translate` | — | Skip all API calls |
+| `--concurrency <n>` | `5` | Max parallel translation requests |
 
-| Flag        | Default     | Description                           |
-| ----------- | ----------- | ------------------------------------- |
-| `--src`     | `en`        | The source language to translate from |
-| `--locales` | `./locales` | Directory containing your JSON files  |
+---
+
+## 🌐 Pluralization
+
+Define a `<key>_plural` entry in your JSON. When `t()` is called with `{ count: N }` and `N !== 1`, the plural form is used automatically:
+
+```json
+{ "apples": "One apple", "apples_plural": "{{count}} apples" }
+```
+
+```tsx
+t('apples', { count: 1 })  // → "One apple"
+t('apples', { count: 7 })  // → "7 apples"
+```
+
+---
+
+## 🔒 Security
+
+This library applies several defences by default:
+
+- **Prototype pollution protection** — Key path segments named `__proto__`, `constructor`, or `prototype` are rejected with an error in both the CLI and the runtime resolver.
+- **Path traversal protection** — Language codes supplied to the CLI are validated against a strict BCP 47 regex before being used as filenames.
+- **JSON schema validation** — Locale files that do not contain a plain JSON object are rejected before any merge operation.
+- **Typed interpolation** — `params` values are constrained to `string | number | boolean`; passing objects or Promises is a TypeScript compile-time error.
+- **useEffect cleanup** — The `localechange` SDK listener is properly deregistered on component unmount, preventing ghost handlers.
 
 ---
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md) for details on how to get involved, submit pull requests, and set up the monorepo locally.
+Contributions are welcome! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md).
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT — see [LICENSE](./LICENSE).
