@@ -114,7 +114,9 @@ async function safeMerge(localesDir: string, langs: string[], keys: Set<string>)
 
     missingCount = countEmptyDeep(currentData);
 
-    await fsPromises.writeFile(filePath, JSON.stringify(currentData, null, 2), 'utf-8');
+    const tmpPath = filePath + '.tmp';
+    await fsPromises.writeFile(tmpPath, JSON.stringify(currentData, null, 2), 'utf-8');
+    await fsPromises.rename(tmpPath, filePath);
 
     console.log(`\nLocale: ${lang}`);
     console.log(`  - Total unique keys: ${keys.size}`);
@@ -136,6 +138,76 @@ cli.command('sync', 'Sync AST and translation files')
     const keys = extractKeys(srcPath);
     await safeMerge(localesPath, langs, keys);
     console.log(`\nSync complete!`);
+  });
+
+async function translateText(text: string, srcLang: string, targetLang: string): Promise<string> {
+  const tokens: string[] = [];
+  const tokenized = text.replace(/\{\{.*?\}\}/g, (m) => { tokens.push(m); return `__${tokens.length - 1}__`; });
+  const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${srcLang}&tl=${targetLang}&dt=t&q=${encodeURIComponent(tokenized)}`;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  let res;
+  try {
+    res = await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+  if (!res.ok) throw new Error(`Translation API error: ${res.statusText}`);
+  const data = await res.json();
+  const translated = data[0].map((x: any) => x[0]).join('');
+  return translated.replace(/__(\d+)__/g, (match: string, i: string) => {
+    const idx = parseInt(i);
+    return idx < tokens.length ? tokens[idx] : match;
+  });
+}
+
+function getMissingKeys(obj: any, sourceObj: any, prefix = '', missing: { path: string, sourceText: string }[] = []): { path: string, sourceText: string }[] {
+  for (const key of Object.keys(obj)) {
+    const newPrefix = prefix ? `${prefix}.${key}` : key;
+    if (typeof obj[key] === 'object' && obj[key] !== null) {
+      getMissingKeys(obj[key], sourceObj?.[key] || {}, newPrefix, missing);
+    } else if (obj[key] === "" && typeof sourceObj?.[key] === 'string') {
+      missing.push({ path: newPrefix, sourceText: sourceObj[key] });
+    }
+  }
+  return missing;
+}
+
+cli.command('translate', 'Translate missing keys')
+  .option('--src <lang>', 'Source language', { default: 'en' })
+  .option('--locales <path>', 'Locales directory', { default: './locales' })
+  .action(async (options) => {
+    console.log(`Starting translation...`);
+    const localesPath = path.resolve(process.cwd(), options.locales);
+    const srcPath = path.join(localesPath, `${options.src}.json`);
+    if (!fs.existsSync(srcPath)) return console.error(`Source file not found: ${srcPath}`);
+    
+    const srcData = JSON.parse(await fsPromises.readFile(srcPath, 'utf-8'));
+    const files = await fsPromises.readdir(localesPath);
+    
+    for (const file of files) {
+      if (!file.endsWith('.json') || file === `${options.src}.json`) continue;
+      const targetLang = file.replace('.json', '');
+      const targetPath = path.join(localesPath, file);
+      const targetData = JSON.parse(await fsPromises.readFile(targetPath, 'utf-8'));
+      
+      const missing = getMissingKeys(targetData, srcData);
+      if (missing.length === 0) continue;
+      console.log(`Translating ${missing.length} keys for ${targetLang}...`);
+      
+      for (const m of missing) {
+        try {
+          const translated = await translateText(m.sourceText, options.src, targetLang);
+          setDeep(targetData, m.path, translated);
+        } catch (e: any) {
+          console.error(`Failed to translate '${m.path}': ${e.message}`);
+        }
+      }
+      const tmpPath = targetPath + '.tmp';
+      await fsPromises.writeFile(tmpPath, JSON.stringify(targetData, null, 2), 'utf-8');
+      await fsPromises.rename(tmpPath, targetPath);
+      console.log(`Translated ${targetLang}`);
+    }
   });
 
 cli.help();
