@@ -1,17 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
 
-declare global {
-  var addOnUISdk: {
-    ready: Promise<void>;
-    app: {
-      ui: {
-        locale: string;
-      };
-      on: (event: 'localechange' | string, callback: (data: { locale: string }) => void) => void;
-    };
-  };
-}
-
 export interface I18nContextType {
   locale: string;
   t: (key: string, params?: Record<string, any>) => string;
@@ -48,14 +36,14 @@ export const I18nProvider: React.FC<I18nProviderProps> = ({ locales, defaultLoca
   useEffect(() => {
     const tryInitSdk = async () => {
       try {
-        if (typeof window !== 'undefined' && window.addOnUISdk) {
-          const sdk = window.addOnUISdk;
+        if (typeof window !== 'undefined' && (window as any).addOnUISdk) {
+          const sdk = (window as any).addOnUISdk;
           await sdk.ready;
-          
+
           if (sdk.app?.ui?.locale) {
             const detectedLocale = sdk.app.ui.locale;
             const primaryLang = detectedLocale.split('-')[0];
-            
+
             if (locales[detectedLocale]) {
               setCurrentLocale(detectedLocale);
             } else if (locales[primaryLang]) {
@@ -99,9 +87,7 @@ export const I18nProvider: React.FC<I18nProviderProps> = ({ locales, defaultLoca
   }, [currentLocale, locales, defaultLocale]);
 
   return (
-    <I18nContext.Provider value={{ locale: currentLocale, t }}>
-      {children}
-    </I18nContext.Provider>
+    <I18nContext.Provider value={{ locale: currentLocale, t }}>{children}</I18nContext.Provider>
   );
 };
 
