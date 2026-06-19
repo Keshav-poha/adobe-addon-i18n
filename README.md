@@ -19,7 +19,7 @@ Traditional i18n libraries (like `i18next` or `react-intl`) are fantastic, but t
 **`i18n-express` solves this by physically splitting the localization process into two halves:**
 
 1. **A Microscopic Runtime:** A tiny React context provider that only knows how to do three things: listen to the Adobe SDK for locale changes, resolve deep object keys (e.g., `user.auth.login`), and replace `{{variables}}`.
-2. **A Heavyweight Local Daemon:** A CLI that runs _on your machine_, not in the browser. It parses your React code, extracts your keys, manages your JSON files, and even uses AI to translate them for you.
+2. **A Heavyweight Local Daemon:** A CLI that runs _on your machine_, not in the browser. It parses your React code, extracts your keys, manages your JSON files, and even uses Google Translate to translate them for you.
 
 You get the developer experience of a massive enterprise i18n framework, but your end-users only download a microscopic React runtime.
 
@@ -30,13 +30,13 @@ You get the developer experience of a massive enterprise i18n framework, but you
 ```mermaid
 graph TD
     subgraph Browser - Adobe Express Iframe
-        A[Your React Add-on] -->|uses| B[@adobe-addon-i18n/react]
+        A[Your React Add-on] -->|uses| B["@adobe-addon-i18n/react"]
         B -->|reads| C[locales/*.json]
         B -.->|listens to| D[Adobe Express addOnUISdk]
     end
 
     subgraph Your Local Development Machine
-        E[@adobe-addon-i18n/cli] -->|1. Parses AST| A
+        E["@adobe-addon-i18n/cli"] -->|1. Parses AST| A
         E -->|2. Syncs Keys| C
         E -->|3. Translates| F[Google Translate API]
         F -.->|Returns text| C
@@ -136,7 +136,7 @@ Then, run the translate command:
 npx adobe-addon-i18n translate --src en --locales ./locales
 ```
 
-The Translation Engine will automatically detect that Spanish, French, and German are missing translations. It will query the free Google Translate API, safely protect your `{{username}}` variable so the AI doesn't break it, and fill out your JSON files instantly.
+The Translation Engine will automatically detect that Spanish, French, and German are missing translations. It will query the free Google Translate API, safely protect your `{{username}}` variable so the translator doesn't break it, and fill out your JSON files instantly.
 
 ---
 
