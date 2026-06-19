@@ -114,7 +114,9 @@ async function safeMerge(localesDir: string, langs: string[], keys: Set<string>)
 
     missingCount = countEmptyDeep(currentData);
 
-    await fsPromises.writeFile(filePath, JSON.stringify(currentData, null, 2), 'utf-8');
+    const tmpPath = filePath + '.tmp';
+    await fsPromises.writeFile(tmpPath, JSON.stringify(currentData, null, 2), 'utf-8');
+    await fsPromises.rename(tmpPath, filePath);
 
     console.log(`\nLocale: ${lang}`);
     console.log(`  - Total unique keys: ${keys.size}`);
@@ -142,19 +144,28 @@ async function translateText(text: string, srcLang: string, targetLang: string):
   const tokens: string[] = [];
   const tokenized = text.replace(/\{\{.*?\}\}/g, (m) => { tokens.push(m); return `__${tokens.length - 1}__`; });
   const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${srcLang}&tl=${targetLang}&dt=t&q=${encodeURIComponent(tokenized)}`;
-  const res = await fetch(url);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  let res;
+  try {
+    res = await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
   if (!res.ok) throw new Error(`Translation API error: ${res.statusText}`);
   const data = await res.json();
   const translated = data[0].map((x: any) => x[0]).join('');
-  return translated.replace(/__(\d+)__/g, (_: string, i: string) => tokens[parseInt(i)]);
+  return translated.replace(/__(\d+)__/g, (match: string, i: string) => {
+    const idx = parseInt(i);
+    return idx < tokens.length ? tokens[idx] : match;
+  });
 }
 
-function getMissingKeys(obj: any, sourceObj: any, prefix = ''): { path: string, sourceText: string }[] {
-  let missing: { path: string, sourceText: string }[] = [];
+function getMissingKeys(obj: any, sourceObj: any, prefix = '', missing: { path: string, sourceText: string }[] = []): { path: string, sourceText: string }[] {
   for (const key of Object.keys(obj)) {
     const newPrefix = prefix ? `${prefix}.${key}` : key;
     if (typeof obj[key] === 'object' && obj[key] !== null) {
-      missing = missing.concat(getMissingKeys(obj[key], sourceObj?.[key] || {}, newPrefix));
+      getMissingKeys(obj[key], sourceObj?.[key] || {}, newPrefix, missing);
     } else if (obj[key] === "" && typeof sourceObj?.[key] === 'string') {
       missing.push({ path: newPrefix, sourceText: sourceObj[key] });
     }
@@ -192,7 +203,9 @@ cli.command('translate', 'Translate missing keys')
           console.error(`Failed to translate '${m.path}': ${e.message}`);
         }
       }
-      await fsPromises.writeFile(targetPath, JSON.stringify(targetData, null, 2), 'utf-8');
+      const tmpPath = targetPath + '.tmp';
+      await fsPromises.writeFile(tmpPath, JSON.stringify(targetData, null, 2), 'utf-8');
+      await fsPromises.rename(tmpPath, targetPath);
       console.log(`Translated ${targetLang}`);
     }
   });
