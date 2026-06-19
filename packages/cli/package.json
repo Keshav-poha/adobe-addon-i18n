@@ -1,8 +1,22 @@
 {
   "name": "@adobe-addon-i18n/cli",
   "version": "0.1.0",
-  "main": "src/cli.ts",
-  "private": true,
+  "main": "dist/cli.js",
+  "module": "dist/cli.mjs",
+  "types": "dist/cli.d.ts",
+  "bin": {
+    "adobe-addon-i18n": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/cli.mjs",
+      "require": "./dist/cli.js",
+      "types": "./dist/cli.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsup"
+  },
   "dependencies": {
     "cac": "^7.0.0",
     "ts-morph": "^28.0.0"
