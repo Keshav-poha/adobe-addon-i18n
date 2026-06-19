@@ -30,7 +30,7 @@ You get the developer experience of a massive enterprise i18n framework, but you
 ```mermaid
 graph TD
     subgraph Browser - Adobe Express Iframe
-        A[Your React Add-on] -->|uses| B[@adobe-addon-i18n/core]
+        A[Your React Add-on] -->|uses| B[@adobe-addon-i18n/react]
         B -->|reads| C[locales/*.json]
         B -.->|listens to| D[Adobe Express addOnUISdk]
     end
@@ -45,7 +45,7 @@ graph TD
 
 ### The Three Pillars
 
-1. **`@adobe-addon-i18n/core`**: The React runtime. It automatically detects the user's language via the Adobe Express Add-on SDK (`addOnUISdk.app.ui.locale`) and listens for `localechange` events.
+1. **`@adobe-addon-i18n/react`**: The React runtime. It automatically detects the user's language via the Adobe Express Add-on SDK (`addOnUISdk.app.ui.locale`) and listens for `localechange` events.
 2. **`@adobe-addon-i18n/cli`**: The AST (Abstract Syntax Tree) compiler. Instead of you manually maintaining JSON files, the CLI reads your `.tsx` files, finds every time you called `t("my.key")`, and builds the JSON files for you automatically.
 3. **The Translation Engine**: Built into the CLI, this engine scans your JSON files for empty strings (`""`), protects your `{{variables}}` using a tokenization algorithm, and fetches high-quality translations for free using the Google Translate API.
 
@@ -58,7 +58,7 @@ graph TD
 Install the tiny core package into your dependencies, and the heavy CLI into your dev dependencies.
 
 ```bash
-npm install @adobe-addon-i18n/core
+npm install @adobe-addon-i18n/react
 npm install --save-dev @adobe-addon-i18n/cli
 ```
 
@@ -67,7 +67,13 @@ npm install --save-dev @adobe-addon-i18n/cli
 Wrap your root React component in the `<I18nProvider>`. This connects your app to the Adobe SDK.
 
 ```tsx
-import { I18nProvider, useTranslation } from '@adobe-addon-i18n/core';
+import { I18nProvider, useTranslation } from '@adobe-addon-i18n/react';
+
+// Normally, you would import these from your generated files
+import en from './locales/en.json';
+import es from './locales/es.json';
+
+const locales = { en, es };
 
 function App() {
   const { t } = useTranslation();
@@ -85,7 +91,7 @@ function App() {
 
 export default function Root() {
   return (
-    <I18nProvider>
+    <I18nProvider locales={locales} defaultLocale="en">
       <App />
     </I18nProvider>
   );
