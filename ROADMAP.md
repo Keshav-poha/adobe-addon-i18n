@@ -27,32 +27,25 @@
 
 ---
 
-## 🔴 Phase 3: The AI Translation Engine
-Automating the translation of empty keys using an LLM pipeline.
+## 🟢 Phase 3: The Translation Engine (COMPLETED)
+Automating the translation of empty keys using a free, zero-dependency API pipeline.
 
-- `[ ]` **Setup AI SDK**: 
-  - Install `@google/genai` as a dependency in `packages/cli/package.json`.
-  - Create `packages/cli/src/ai.ts` to encapsulate the LLM API calls.
-- `[ ]` **Secure Configuration & Authentication**: 
-  - Install `dotenv` to parse `.env` files locally.
-  - Update CLI arguments using `cac` to accept an optional `--api-key` flag.
-  - Implement fallback hierarchy: Command-line flag > `.env` file > `process.env`.
-- `[ ]` **`translate` Command Scaffold**: 
+- `[x]` **Setup Translation API**: 
+  - Utilize the free, unauthenticated Google Translate API (`translate.googleapis.com`) using native Node.js `fetch`.
+  - Avoid heavy dependencies like `@google/genai` or `dotenv`.
+- `[x]` **`translate` Command Scaffold**: 
   - Create `cli.command('translate')` in `cli.ts`.
   - Add flags: `--src <lang>` (default: `en`), `--locales <dir>` (default: `./locales`).
-- `[ ]` **Missing Key Targeting Algorithm**: 
-  - Load the source JSON (`en.json`) and the target JSON (`es.json`, etc.).
-  - Recursively diff the objects to isolate paths where the target value is exactly `""`.
-- `[ ]` **Context Extraction System**: 
-  - For each missing key, extract its corresponding value from the source (`en.json`).
-  - Flatten the source JSON and fetch the 2 preceding and 2 succeeding keys to provide semantic neighborhood context (e.g., distinguishing "Run" as a verb vs. a noun based on surrounding UI labels).
-- `[ ]` **Prompt Engineering**: 
-  - Construct a strict `systemInstruction` prompt.
-  - Instruct the model: "You are an Adobe Express localization expert. Translate the following UI strings. Never translate or modify text wrapped in double curly braces like `{{variable}}`. Respond ONLY with a valid JSON object mirroring the requested keys."
-- `[ ]` **JSON Reintegration**: 
-  - Parse the LLM's JSON response securely.
-  - Inject the translated strings back into the deep JSON structure using the `setDeep` utility.
+- `[x]` **Missing Key Targeting Algorithm**: 
+  - Load the source JSON (`en.json`) and target JSONs (`es.json`, etc.).
+  - Recursively diff objects to isolate paths where the target value is exactly `""`.
+- `[x]` **Safe Translation & Interpolation Protection**: 
+  - Tokenize dynamic variables (`{{variable}}` -> `__0__`) before sending to the translation API.
+  - Fetch translations and restore tokens back to `{{variable}}` to prevent interpolation breakage.
+- `[x]` **JSON Reintegration**: 
+  - Inject translated strings back into the deep JSON structure using the `setDeep` utility.
   - Write back to disk using `fs/promises`.
+
 
 ---
 
